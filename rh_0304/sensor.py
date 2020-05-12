@@ -1,8 +1,9 @@
-
+import time
 import RPi.GPIO as GPIO
 import Adafruit_GPIO.SPI as SPI
 import Adafruit_MCP3008
 import Adafruit_DHT
+from numpy import interp
 
 # HCR
 PIN_TRIGGER = 24
@@ -34,14 +35,48 @@ def sensor_initialization():
     GPIO.output(PIN_WATER_PUMP, False)  # pump
     GPIO.output(PIN_LED, False)  # led
 
+    time.sleep(1)
+
+    fan_status = True  # fan on
+    ptc_status = False  # ptc off
+    water_pump_status = False  # pump off
+    led_status = False  # led off
+
+    GPIO.output(PIN_FAN, fan_status)
+    GPIO.output(PIN_PTC, ptc_status)
+    GPIO.output(PIN_WATER_PUMP, water_pump_status)
+    GPIO.output(PIN_LED, led_status)
+
+    return fan_status, ptc_status, water_pump_status, led_status
+
+
 def get_air_humidity():
     sensor = Adafruit_DHT.DHT11
     pin = 17
     humidity, temperature = Adafruit_DHT.read_retry(sensor, pin)
     return humidity
 
-def get_air_temp():
+def get_temperature():
     sensor = Adafruit_DHT.DHT11
     pin = 17
     humidity, temperature = Adafruit_DHT.read_retry(sensor, pin)
     return temperature
+
+def get_water_level():
+    print("Calculating distance")
+    GPIO.output(PIN_TRIGGER, GPIO.HIGH)
+    time.sleep(0.00001)
+    GPIO.output(PIN_TRIGGER, GPIO.LOW)
+    while GPIO.input(PIN_ECHO) == 0:
+        pulse_start_time = time.time()
+    while GPIO.input(PIN_ECHO) == 1:
+        pulse_end_time = time.time()
+    pulse_duration = pulse_end_time - pulse_start_time
+    water_level = 21 - round(pulse_duration * 17150)
+    return water_level
+
+def get_soil_humidity(mcp):
+    return round(interp(format(mcp.read_adc(1)), [0, 1024], [100, 0]), 2)
+
+def get_lux(mcp):
+    return round(interp(mcp.read_adc(0), [0, 1024], [100, 0]), 2)

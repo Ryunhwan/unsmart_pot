@@ -1,6 +1,4 @@
-
 import urllib.request
-
 
 def check_internet_on():
     host = 'http://google.com'
