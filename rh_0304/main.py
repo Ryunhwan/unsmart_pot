@@ -14,7 +14,6 @@ from numpy import interp
 from check_function import *
 from database import *
 from sensor import *
-from control import *
 
 while True:
     time.sleep(5)
@@ -25,14 +24,6 @@ while True:
         print('## SUCCESS INTERNET CONNECTION!')
         break
 
-
-device = 'device1'
-db_sensor_data_loc = device + '/sensor_data'
-db_control_data_loc = device + '/control_data'
-fan_gpio_pin = 4
-ptc_gpio_pin = 18
-pump_gpio_pin = 22
-led_gpio_pin = 27
 
 crop = get_data(device + '/config/crops')
 print('## main crop: ', crop)
@@ -54,8 +45,9 @@ set_data(db_control_data_loc + '/light', light_status)
 # 1초 간격으로 돌면서 서버에 저장된 목표치와 현재 수집한 센서 데이터 비교
 # on/off 여부를 바로바로 결정
 
-if crop == 'mush_insect':
-    while True:
+water_pump_timer = 0
+while True:
+    if crop == 'mush_insect':
         temperature = get_temperature()
         air_humidity = get_air_humidity()
         soil_humidity = get_soil_humidity(mcp)
@@ -76,10 +68,18 @@ if crop == 'mush_insect':
         print('# ptc: ', is_ptc_on)
         ptc_control(is_ptc_on, temperature, temperature_goal)
 
+        is_water_pump_on = get_data(db_control_data_loc + '/water_pump')
+        print('# water_pump: ', is_water_pump_on)
+        # water pump는 가끔 켜져야 함
+        if water_pump_timer == 3600:
+            soil_water_pump_control(soil_humidity, soil_humidity_goal)
+            water_pump_timer = 0
+        else:
+            water_pump_timer += 1
+        print(water_pump_timer)
 
 
-elif crop == 'vege_fish':
-    while True:
+    elif crop == 'vege_fish':
         temperature = get_temperature()
         air_humidity = get_air_humidity()
         water_level = get_water_level()
