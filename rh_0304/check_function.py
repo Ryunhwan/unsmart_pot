@@ -37,7 +37,24 @@ def check_led_timer(hour_now, min_now):
     print('min_now: ', min_now)
     print('led_end_min: ', led_end_min)
 
-    if hour_now < led_start_hour:
+    if hour_now == led_start_hour == led_end_hour:
+        if led_start_min <= min_now <= led_end_min:
+            if is_led_on:
+                print('# led on continue')
+                return
+            if not is_led_on:
+                print('# led on')
+                set_data(db_control_data_loc + '/light', True)
+                return
+        else:
+            print('# led off')
+            set_data(db_control_data_loc + '/light', False)
+            return
+        if not is_led_on:
+            print('# led off continue')
+            return
+
+    elif hour_now < led_start_hour:
         if is_led_on:
             print('# led off')
             set_data(db_control_data_loc + '/light', False)
