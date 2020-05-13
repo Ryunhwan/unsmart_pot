@@ -41,10 +41,7 @@ print('## DATABASE ACCESS SUCCESS!')
 
 # 수동제어
 def stream_handler(message):
-    global is_control_auto, is_fan_on, is_water_pump_on, is_light_on
     print(message)
-    is_control_auto = db.child(db_control_data_loc + '/auto').get().val()
-
     path = message["path"]
     data = message["data"]
 
@@ -60,6 +57,11 @@ def stream_handler(message):
     except:
         print('error')
 
+    try:
+        if data['led_auto'] or not data['led_auto']:
+            GPIO.output(PIN_LED, data['led_auto'])
+    except:
+        print('error')
 
     if path == 'soil_humidity_goal':
         set_data(db_control_data_loc + '/soil_humidity_goal', data)
@@ -70,26 +72,22 @@ def stream_handler(message):
 
     try:
         if data['fan'] or not data['fan']:
-            is_fan_on = data['fan']
-            GPIO.output(4, is_fan_on)
+            GPIO.output(PIN_FAN, data['fan'])
     except:
         print('error')
     try:
         if path == '/fan':
-            is_fan_on = data
-            GPIO.output(4, is_fan_on)
+            GPIO.output(PIN_FAN, data)
     except:
         print('error')
     try:
         if data['water_pump'] or not data['water_pump']:
-            is_water_pump_on = data['water_pump']
-            GPIO.output(22, is_water_pump_on)
+            GPIO.output(PIN_WATER_PUMP, data['water_pump'])
     except:
         print('error')
     try:
         if path == "/water_pump":
-            is_water_pump_on = data
-            GPIO.output(22, is_water_pump_on)
+            GPIO.output(PIN_WATER_PUMP, data)
     except:
         print('error')
 
