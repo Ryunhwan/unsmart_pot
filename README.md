@@ -4,4 +4,4 @@ This is for smart pot(for growth vegetable or mushroom..) code with python and r
 
 But I think it isnt smart, just inefficient machine
 
-If you want, do copy. but not recommended :(
+If you want, copy it. but not recommended :(
