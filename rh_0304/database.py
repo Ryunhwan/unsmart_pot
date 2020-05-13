@@ -1,4 +1,3 @@
-
 import pyrebase
 
 firebase_project_id = 'manu-smart-farm'
@@ -10,6 +9,10 @@ config = {
 }
 firebase = pyrebase.initialize_app(config)
 db = firebase.database()
+
+device = 'device1'
+db_sensor_data_loc = device + '/sensor_data'
+db_control_data_loc = device + '/control_data'
 
 
 def get_data(loc):

@@ -27,71 +27,149 @@ while True:
 
 crop = get_data(device + '/config/crops')
 print('## main crop: ', crop)
-
-# remove sensor database
-db.child(db_sensor_data_loc).remove()
-
-print('## DATABASE ACCESS SUCCESS!')
-
 mcp = get_mcp(0,0)
-fan_status, ptc_status, water_pump_status, light_status = sensor_initialization()
 
+db.child(db_sensor_data_loc).remove() # remove sensor data in database
+
+fan_status, ptc_status, water_pump_status, light_status = sensor_initialization()
 set_data(db_control_data_loc + '/fan', fan_status)
 set_data(db_control_data_loc + '/ptc', ptc_status)
 set_data(db_control_data_loc + '/water_pump', water_pump_status)
 set_data(db_control_data_loc + '/light', light_status)
+print('## DATABASE ACCESS SUCCESS!')
 
-# 자동제어인 경우
-# 1초 간격으로 돌면서 서버에 저장된 목표치와 현재 수집한 센서 데이터 비교
-# on/off 여부를 바로바로 결정
 
+# 수동제어
+def stream_handler(message):
+    global is_control_auto, is_fan_on, is_water_pump_on, is_light_on
+    print(message)
+    is_control_auto = db.child(db_control_data_loc + '/auto').get().val()
+
+    path = message["path"]
+    data = message["data"]
+
+    try:
+        if path == '/light':
+            set_data(db_control_data_loc + '/light', data)
+            GPIO.output(PIN_LED, data)
+    except:
+        print('error')
+    try:
+        if data['light'] or not data['light']:
+            GPIO.output(PIN_LED, data['light'])
+    except:
+        print('error')
+
+
+    if path == 'soil_humidity_goal':
+        set_data(db_control_data_loc + '/soil_humidity_goal', data)
+    elif path == 'humidity_goal':
+        set_data(db_control_data_loc + '/humidity_goal', data)
+    elif path == 'temp_goal':
+        set_data(db_control_data_loc + '/temp_goal', data)
+
+    try:
+        if data['fan'] or not data['fan']:
+            is_fan_on = data['fan']
+            GPIO.output(4, is_fan_on)
+    except:
+        print('error')
+    try:
+        if path == '/fan':
+            is_fan_on = data
+            GPIO.output(4, is_fan_on)
+    except:
+        print('error')
+    try:
+        if data['water_pump'] or not data['water_pump']:
+            is_water_pump_on = data['water_pump']
+            GPIO.output(22, is_water_pump_on)
+    except:
+        print('error')
+    try:
+        if path == "/water_pump":
+            is_water_pump_on = data
+            GPIO.output(22, is_water_pump_on)
+    except:
+        print('error')
+
+control_data_stream = db.child(db_control_data_loc).stream(stream_handler)
+
+# 자동제어
+system_timer = 0
 water_pump_timer = 0
 while True:
+    temperature = get_temperature()
+    air_humidity = get_air_humidity()
+    water_level = get_water_level()
+    soil_humidity = get_soil_humidity(mcp)
+    lux = get_lux(mcp)
+    data = {
+        "date": int(unixtime()),
+        "humidity": air_humidity,
+        "temperature": temperature,
+        "water_level": water_level,
+        "soil_humidity": soil_humidity,
+        "lux": lux,
+    }
+    print(data)
+    db.child(db_sensor_data_loc).push(data) # push to database
+
+    # 현재 시간 불러와서 led 제어
+    hour_now = int(time.strftime('%H'))
+    min_now = int(time.strftime('%M'))
+    check_led_timer(hour_now, min_now)
+
     if crop == 'mush_insect':
-        temperature = get_temperature()
-        air_humidity = get_air_humidity()
-        soil_humidity = get_soil_humidity(mcp)
-        lux = get_lux(mcp)
         temperature_goal = get_data(db_control_data_loc + '/temp_goal')
         soil_humidity_goal = get_data(db_control_data_loc + '/soil_humidity_goal')
         air_humidity_goal = get_data(db_control_data_loc + '/humidity_goal')
 
-        print('# temperature: ', temperature)
-        print('# temperature goal: ', temperature_goal)
-        print('# air humidity: ', air_humidity)
-        print('# air humidity goal: ', air_humidity_goal)
-        print('# soil humidity: ', soil_humidity)
-        print('# soil humidity goal: ', soil_humidity_goal)
-        print('# lux: ', lux)
+        # print('# temperature: ', temperature)
+        # print('# temperature goal: ', temperature_goal)
+        # print('# air humidity: ', air_humidity)
+        # print('# air humidity goal: ', air_humidity_goal)
+        # print('# soil humidity: ', soil_humidity)
+        # print('# soil humidity goal: ', soil_humidity_goal)
+        # print('# lux: ', lux)
 
         is_ptc_on = get_data(db_control_data_loc + '/ptc')
-        print('# ptc: ', is_ptc_on)
+        # print('# ptc: ', is_ptc_on)
         ptc_control(is_ptc_on, temperature, temperature_goal)
 
         is_water_pump_on = get_data(db_control_data_loc + '/water_pump')
-        print('# water_pump: ', is_water_pump_on)
+        # print('# water_pump: ', is_water_pump_on)
         # water pump는 가끔 켜져야 함
-        if water_pump_timer == 3600:
-            soil_water_pump_control(soil_humidity, soil_humidity_goal)
+        if water_pump_timer == 2000:
+            mush_water_pump_control(soil_humidity, soil_humidity_goal)
             water_pump_timer = 0
         else:
             water_pump_timer += 1
-        print(water_pump_timer)
 
 
     elif crop == 'vege_fish':
-        temperature = get_temperature()
-        air_humidity = get_air_humidity()
-        water_level = get_water_level()
-        lux = get_lux(mcp)
         temperature_goal = get_data(db_control_data_loc + '/temp_goal')
         air_humidity_goal = get_data(db_control_data_loc + '/humidity_goal')
         water_level_goal = get_data(db_control_data_loc + '/water_level_goal')
 
-        print('# temperature: ', temperature)
-        print('# temperature goal: ', temperature_goal)
-        print('# air humidity: ', air_humidity)
-        print('# air humidity goal: ', air_humidity_goal)
-        print('# water level: ', water_level)
-        print('# water level goal: ', water_level_goal)
-        print('# lux: ', lux)
+        # print('# temperature: ', temperature)
+        # print('# temperature goal: ', temperature_goal)
+        # print('# air humidity: ', air_humidity)
+        # print('# air humidity goal: ', air_humidity_goal)
+        # print('# water level: ', water_level)
+        # print('# water level goal: ', water_level_goal)
+        # print('# lux: ', lux)
+
+        is_ptc_on = get_data(db_control_data_loc + '/ptc')
+        # print('# ptc: ', is_ptc_on)
+        ptc_control(is_ptc_on, temperature, temperature_goal)
+
+        # 물높이 자동제어 없어졌다고 해서 일단 빼놨음
+        # is_water_pump_on = get_data(db_control_data_loc + '/water_pump')
+        # print('# water_pump: ', is_water_pump_on)
+        # fish_water_pump_control(is_water_pump_on, water_level, water_level_goal)
+
+    if system_timer == 10000:
+        db.child(db_sensor_data_loc).remove()  # remove sensor data in database
+    else:
+        system_timer += 1

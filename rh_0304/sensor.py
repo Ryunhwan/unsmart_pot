@@ -17,9 +17,6 @@ PIN_PTC = 18
 PIN_WATER_PUMP = 22
 PIN_LED = 27
 
-device = 'device1'
-db_sensor_data_loc = device + '/sensor_data'
-db_control_data_loc = device + '/control_data'
 
 def get_mcp(SPI_PORT, SPI_DEVICE):
     return Adafruit_MCP3008.MCP3008(spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE))
@@ -99,18 +96,38 @@ def ptc_control(is_ptc_on, temperature, temp_goal):
             return
     else:
         if not is_ptc_on:
-            print('# ptc on continue')
-            return
-        else:
             print('# ptc on')
             GPIO.output(PIN_PTC, True)
             set_data(db_control_data_loc + '/ptc', True)
             return
+        else:
+            print('# ptc on continue')
+            return
 
-def soil_water_pump_control(soil_humidity, soil_humidity_goal):
+def mush_water_pump_control(soil_humidity, soil_humidity_goal):
     if soil_humidity < soil_humidity_goal:
         GPIO.output(PIN_WATER_PUMP, True)
         set_data(db_control_data_loc + '/water_pump', True)
         time.sleep(1)
         GPIO.output(PIN_WATER_PUMP, False)
         set_data(db_control_data_loc + '/water_pump', False)
+
+def fish_water_pump_control(is_water_pump_on, water_level, water_level_goal):
+    if water_level >= water_level_goal:
+        if is_water_pump_on:
+            print('# water pump off')
+            GPIO.output(PIN_WATER_PUMP, False)
+            set_data(db_control_data_loc + '/water_pump', False)
+            return
+        else:
+            print('# water pump off continue')
+            return
+    else:
+        if not is_water_pump_on:
+            print('# water pump on')
+            GPIO.output(PIN_WATER_PUMP, True)
+            set_data(db_control_data_loc + '/water_pump', True)
+            return
+        else:
+            print('# water pump on continue')
+            return
