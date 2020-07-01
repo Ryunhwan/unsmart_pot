@@ -97,6 +97,11 @@ control_data_stream = db.child(db_control_data_loc).stream(stream_handler)
 system_timer = 0
 water_pump_timer = 0
 while True:
+    # 자동제어가 아닌 경우는 계속 스킵
+    auto = get_data(db_control_data_loc + '/auto')
+    if not auto:
+        print('# 수동제어모드')
+        continue
     temperature = get_temperature()
     air_humidity = get_air_humidity()
     water_level = get_water_level()
@@ -138,7 +143,7 @@ while True:
         is_water_pump_on = get_data(db_control_data_loc + '/water_pump')
         # print('# water_pump: ', is_water_pump_on)
         # water pump는 가끔 켜져야 함
-        if water_pump_timer == 2000:
+        if water_pump_timer == 3:
             mush_water_pump_control(soil_humidity, soil_humidity_goal)
             water_pump_timer = 0
         else:
