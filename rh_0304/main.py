@@ -93,15 +93,9 @@ def stream_handler(message):
 
 control_data_stream = db.child(db_control_data_loc).stream(stream_handler)
 
-# 자동제어
 system_timer = 0
 water_pump_timer = 0
 while True:
-    # 자동제어가 아닌 경우는 계속 스킵
-    auto = get_data(db_control_data_loc + '/auto')
-    if not auto:
-        print('# 수동제어모드')
-        continue
     temperature = get_temperature()
     air_humidity = get_air_humidity()
     water_level = get_water_level()
@@ -117,6 +111,12 @@ while True:
     }
     print(data)
     db.child(db_sensor_data_loc).push(data) # push to database
+
+    # 여기부터 자동제어
+    # 자동제어가 아닌 경우는 계속 스킵
+    auto = get_data(db_control_data_loc + '/auto')
+    if not auto:
+        continue
 
     # 현재 시간 불러와서 led 제어
     hour_now = int(time.strftime('%H'))
